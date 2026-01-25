@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Entornos virtuales
+venv/
+env/
+.env
+.venv
+
+# IDEs
+.vscode/
+.idea/
+
+# Sistemas operativos
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Archivos específicos del proyecto
+# Ignorar templates como solicitó el usuario
+templates/
+
+# Otros
+dist/
+build/
+*.egg-info/
