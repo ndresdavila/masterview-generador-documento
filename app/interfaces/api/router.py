@@ -47,10 +47,11 @@ async def generate_document(request: GenerateDocumentRequest):
             gross_weight = row.get("gross_weight", "")
 
             # Crear bloque marks_block
-            marks_block = f"CONTAINER:\n{marks_numbers}\nSEALS:\n{container_numbers}"
+            parts = [s for s in [marks_numbers, container_numbers] if s]
+            marks_block = "\n".join(parts)
 
             # Crear bloque description_block
-            description_block = f"{description}\n{net_weight} KN – {gross_weight} KB"
+            description_block = description
 
             # Preserve existing row data and add the formatted blocks
             processed_row = row.copy()
@@ -68,7 +69,7 @@ async def generate_document(request: GenerateDocumentRequest):
             template_name=request.template_name, data=normalized_data
         )
 
-        output_filename = f"generado_{request.template_name}"
+        output_filename = output_name(normalized_data)
 
         return Response(
             content=doc_bytes,
@@ -87,10 +88,12 @@ async def generate_document(request: GenerateDocumentRequest):
 # ======================================================
 #   ENDPOINT 2: GENERAR DOCX Y ENVIARLO A ZOHO EMAIL
 # ======================================================
-@router.post(
-    "/generate_and_send",
-    summary="Generar un DOCX y enviarlo automáticamente al microservicio Zoho Email",
-)
+def output_name(data: dict) -> str:
+    booking = str((data or {}).get("booking_number") or "proforma")
+    safe = "".join(ch if ch.isalnum() or ch in "-_." else "_" for ch in booking).strip("._") or "proforma"
+    return f"PROFORMA_{safe[:40]}.docx"
+
+
 @router.post(
     "/generate_and_send",
     summary="Generar un DOCX y enviarlo automáticamente al microservicio Zoho Email",
@@ -126,9 +129,14 @@ async def generate_and_send(request: GenerateDocumentRequest):
             net_weight = row.get("net_weight") or 0
             gross_weight = row.get("gross_weight") or 0
 
-            marks_block = f"CONTAINER:\n{marks_numbers}\nSEALS:\n{container_numbers}"
+            # Crear bloque marks_block
+            # Eliminamos etiquetas harcoded para dar control al frontend
+            parts = [s for s in [marks_numbers, container_numbers] if s]
+            marks_block = "\n".join(parts)
 
-            description_block = f"{description}\n{net_weight} KN – {gross_weight} KB"
+            # Crear bloque description_block
+            # Eliminamos append de pesos harcoded
+            description_block = description
 
             # Preserve existing row data and add the formatted blocks
             processed_row = row.copy()
@@ -147,6 +155,9 @@ async def generate_and_send(request: GenerateDocumentRequest):
             template_name=request.template_name, data=normalized_data
         )
 
+        if not request.email_to:
+            raise HTTPException(status_code=400, detail="Indique al menos un correo destino")
+
         # -------------------------
         # ARMAR PAYLOAD A ZOHO
         # -------------------------
@@ -158,7 +169,7 @@ async def generate_and_send(request: GenerateDocumentRequest):
 
         files = {
             "file": (
-                request.template_name,
+                output_name(normalized_data),
                 doc_bytes,
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             )
@@ -178,6 +189,8 @@ async def generate_and_send(request: GenerateDocumentRequest):
             "zoho_response": response.json(),
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         print("\n========== ERROR generate_and_send ==========")
         print("Mensaje:", str(e))

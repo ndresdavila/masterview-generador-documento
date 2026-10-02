@@ -2,7 +2,7 @@ import io
 from pathlib import Path
 from typing import Optional
 
-from docxtpl import DocxTemplate
+from docxtpl import DocxTemplate, RichText
 from jinja2 import Environment
 
 from app.domain.entities import TemplateData
@@ -37,8 +37,9 @@ class DocxTplTemplateRenderer(TemplateRendererPort):
         # Cargar plantilla
         doc = DocxTemplate(str(template_path))
 
-        # Renderizar con el contexto de datos y el entorno Jinja2
-        doc.render(template_data.data, jinja_env=self._jinja_env)
+        # Renderizar con el contexto de datos y el entorno Jinja2.
+        # Un salto de línea en el texto no se ve en Word si queda dentro de un solo w:t.
+        doc.render(break_lines(template_data.data), jinja_env=self._jinja_env)
 
         # Guardar en memoria (no en disco)
         output_stream = io.BytesIO()
@@ -46,3 +47,19 @@ class DocxTplTemplateRenderer(TemplateRendererPort):
         output_stream.seek(0)
 
         return output_stream.read()
+
+
+def break_lines(value):
+    if isinstance(value, dict):
+        return {key: break_lines(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [break_lines(item) for item in value]
+    if isinstance(value, str) and "\n" in value:
+        rich = RichText()
+        lines = value.split("\n")
+        for index, line in enumerate(lines):
+            if index:
+                rich.xml += "<w:r><w:br/></w:r>"
+            rich.add(line if line else " ")
+        return rich
+    return value
