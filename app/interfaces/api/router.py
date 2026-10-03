@@ -43,8 +43,6 @@ async def generate_document(request: GenerateDocumentRequest):
             marks_numbers = row.get("marks_numbers", "")
             container_numbers = row.get("container_numbers", "")
             description = row.get("description", "")
-            net_weight = row.get("net_weight", "")
-            gross_weight = row.get("gross_weight", "")
 
             # Crear bloque marks_block
             parts = [s for s in [marks_numbers, container_numbers] if s]
@@ -126,9 +124,6 @@ async def generate_and_send(request: GenerateDocumentRequest):
                     [line.lstrip() for line in description.splitlines()]
                 )
 
-            net_weight = row.get("net_weight") or 0
-            gross_weight = row.get("gross_weight") or 0
-
             # Crear bloque marks_block
             # Eliminamos etiquetas harcoded para dar control al frontend
             parts = [s for s in [marks_numbers, container_numbers] if s]
@@ -155,16 +150,10 @@ async def generate_and_send(request: GenerateDocumentRequest):
             template_name=request.template_name, data=normalized_data
         )
 
-        if not request.email_to:
-            raise HTTPException(status_code=400, detail="Indique al menos un correo destino")
-
-        # -------------------------
-        # ARMAR PAYLOAD A ZOHO
-        # -------------------------
         email_payload = {
-            "para": request.email_to or [],
-            "cc": request.email_cc or [],
-            "cco": request.email_cco or [],
+            "para": ["log@masterview.me"],
+            "cc": [],
+            "cco": [],
         }
 
         files = {

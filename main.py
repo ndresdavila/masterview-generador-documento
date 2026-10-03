@@ -1,5 +1,7 @@
+from pathlib import Path
+
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from app.interfaces.api.router import router
 
 app = FastAPI(title="Generador Proforma Word")
@@ -19,3 +21,11 @@ app.add_middleware(
 # INCLUIR RUTAS
 # -----------------------------------------------------------------
 app.include_router(router)
+
+
+@app.get("/health")
+def health():
+    template = Path(__file__).resolve().parent / "templates" / "Template.docx"
+    if not template.is_file():
+        return Response(content='{"ok":false}', media_type="application/json", status_code=503)
+    return {"ok": True}
